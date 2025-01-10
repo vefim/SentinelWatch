@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelWatch File Integrity Monitor Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        /* Header Styles */
+        header {
+            background-color: #1f1f1f;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #4caf50;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            color: #4caf50;
+        }
+
+        header p {
+            margin: 5px 0 0;
+            font-size: 1rem;
+            color: #b0bec5;
+        }
+
+        /* Main Layout */
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin: 20px auto;
+            width: 90%;
+            max-width: 1200px;
+            gap: 20px;
+        }
+
+        /* Dashboard Cards */
+        .card {
+            background: #1e1e2f;
+            flex: 1 1 calc(33.33% - 20px);
+            min-width: 300px;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #4caf50;
+        }
+
+        .card p {
+            margin: 0;
+            font-size: 1rem;
+            color: #b0bec5;
+        }
+
+        /* Alerts Container */
+        .alerts-container {
+            background: #292940;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .alert-item {
+            background-color: #f44336;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+        }
+
+        .alert-item span {
+            font-size: 0.9rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 15px 0;
+            margin-top: 20px;
+            background-color: #1f1f1f;
+            color: #b0bec5;
+            border-top: 2px solid #4caf50;
+        }
+
+        footer a {
+            color: #4caf50;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                flex-direction: column;
+            }
+
+            .card {
+                flex: 1 1 100%;
+            }
+        }
+
+        /* Progress Bar Styles */
+        .progress-bar-container {
+            margin: 5px 0; /* Reduced margin to save space */
+            overflow: hidden;
+        }
+
+        .progress-bar-container label {
+            display: block;
+            margin-bottom: 3px; /* Reduced margin to save space */
+            font-size: 0.9rem; /* Adjusted font size for compact view */
+        }
+
+        .progress-bar {
+            height: 15px; /* Reduced height to save space */
+            background-color: #4caf50;
+            text-align: center;
+            color: white;
+            line-height: 15px;  /* Center text vertically */
+            border-radius: 5px;  /* Add rounded corners */
+        }
+    </style>
+
+    <script>
+        function displayDate() {
+            const now = new Date();
+            const options = {
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            document.getElementById("dateStamp").textContent = now.toLocaleDateString(undefined, options) + 
+                                                              " " + now.toLocaleTimeString();
+        }
+        window.onload = displayDate;
+    </script>
+
+</head>
+<body>
+
+   
+
+    <header>
+        <h1>SentinelWatch Dashboard</h1>
+        <p>Real-time file integrity monitoring with advanced analytics</p>
+    </header>
+
+    <main>
+        <section class="dashboard">
+            <!-- System Health Card -->
+            <div class="card">
+                <h2>System Health</h2>
+                <p>Status: <strong id="system-health-status" style="color: #4caf50;">Healthy</strong></p>
+                <p>CPU Usage: <span id="cpu-usage">0%</span></p>
+                <p>Memory Usage: <span id="memory-usage">0%</span></p>
+                <p>Disk I/O Usage: <span id="disk-io-usage">0%</span></p>
+            </div>
+
+            <!-- File Activity Card -->
+            <div class="card" style="height: 200px;">
+                <h2>File Activity</h2>
+                <div id="fileActivityProgressBars" style="max-height: 140px; overflow-y: auto;"></div>
+            </div>
+            
+            <!-- Alerts Card -->
+            <div class="card">
+                <h2>Active Alerts</h2>
+                <div class="alerts-container" id="alerts-container"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 SentinelWatch. All rights reserved.</p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Fetch alerts
+            function fetchAlerts() {
+                $.get('/alerts', function(data) {
+                    var alertsContainer = $('#alerts-container');
+                    alertsContainer.empty();  // Clear existing alerts
+                    data.alerts.forEach(function(alert) {
+                        var alertHtml = '<div class="alert-item"><span>' + alert.message + '</span><span>' + alert.time + '</span></div>';
+                        alertsContainer.append(alertHtml);
+                    });
+                });
+            }
+
+            // Fetch system health metrics
+            function fetchSystemHealth() {
+                $.get('/system-health', function(data) {
+                    console.log('System Health Data:', data);  // Logging fetched data
+                    $('#cpu-usage').text(data.system_metrics['CPU Usage'] + '%');
+                    $('#memory-usage').text(data.system_metrics['Memory Usage'] + '%');
+                    $('#disk-io-usage').text(data.system_metrics['Disk I/O'] + '%');
+
+                    // Determine health status
+                    var status = 'Healthy';
+                    var color = '#4caf50';
+                    if (data.system_metrics['CPU Usage'] > 80 || data.system_metrics['Memory Usage'] > 80 || data.system_metrics['Disk I/O'] > 80) {
+                        status = 'Unhealthy';
+                        color = '#f44336';
+                    }
+                    $('#system-health-status').text(status).css('color', color);
+                }).fail(function() {
+                    console.error('Failed to fetch system health data');
+                });
+            }
+
+            // Fetch file activity data and create progress bars
+            function fetchFileActivity() {
+                $.get('/file-activity', function(data) {
+                    var progressBars = $('#fileActivityProgressBars');
+                    progressBars.empty();
+                    var total = Object.values(data.file_activity).reduce((a, b) => a + b, 0);
+                    if (total === 0) {
+                        progressBars.append('<p>No data yet</p>');
+                    } else {
+                        Object.keys(data.file_activity).forEach(function(type) {
+                            var percentage = (data.file_activity[type] / total) * 100;
+                            var progressBar = `<div class="progress-bar-container">
+                                <label>${type}</label>
+                                <div class="progress-bar" style="width: ${percentage}%; background-color: ${getColor(type)};">${percentage.toFixed(2)}%</div>
+                            </div>`;
+                            progressBars.append(progressBar);
+                        });
+                    }
+                }).fail(function() {
+                    console.error('Failed to fetch file activity data');
+                });
+            }
+
+            // Function to get color based on file type
+            function getColor(type) {
+                switch(type) {
+                    case 'Text Files': return '#4caf50';
+                    case 'Images': return '#2196f3';
+                    case 'Videos': return '#ff9800';
+                    case 'Others': return '#9c27b0';
+                    default: return '#ffffff';
+                }
+            }
+
+            // Initial fetch
+            fetchAlerts();
+            fetchSystemHealth();
+            fetchFileActivity();
+
+            // Set intervals to fetch data periodically
+            setInterval(fetchAlerts, 5000);  // Fetch alerts every 5 seconds
+            setInterval(fetchSystemHealth, 5000);  // Fetch system health every 5 seconds
+            setInterval(fetchFileActivity, 5000);  // Fetch file activity every 5 seconds
+        });
+    </script>
+</body>
+</html>
+
